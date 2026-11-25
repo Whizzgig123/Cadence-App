@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FAF8F5" />
+  <meta name="description" content="Mindful task pacing, focus blocks and movement breaks." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/cadence-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/cadence-192.png" />
+  <title>Cadence — Mindful Task Pacing & Movement Breaks</title>
+  <!-- Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Load Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            sand: {
+              50: '#FAF8F5',
+              100: '#F4F0EA',
+              200: '#E8E1D7',
+              300: '#D6CBB9',
+              800: '#3D3832',
+              900: '#26231F',
+            },
+            sage: {
+              50: '#F2F7F4',
+              100: '#E1EDE6',
+              200: '#C4DDD0',
+              500: '#4F8A6F',
+              600: '#3D6E58',
+              700: '#2E5443',
+              900: '#182E24',
+            },
+            focus: {
+              50: '#F4F5FA',
+              100: '#E6E9F5',
+              200: '#CCD2EB',
+              500: '#5565A8',
+              600: '#43518C',
+              700: '#343F6E',
+              900: '#1D2340',
+            },
+            terracotta: {
+              50: '#FDF5F2',
+              100: '#FAE8E1',
+              500: '#C96A4B',
+              600: '#AD5538',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom subtle scrollbar & transitions */
+    body {
+      background-color: #FAF8F5;
+      color: #26231F;
+      -webkit-font-smoothing: antialiased;
+    }
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    .card-shadow {
+      box-shadow: 0 4px 20px -2px rgba(38, 35, 31, 0.05), 0 1px 3px 0 rgba(38, 35, 31, 0.03);
+    }
+    .drag-over {
+      border-top: 3px solid #5565A8 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-focus-100 selection:text-focus-900">
+
+  <!-- Top Navigation & Day Projection Bar -->
+  <header class="sticky top-0 z-30 bg-sand-50/90 backdrop-blur-md border-b border-sand-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-focus-600 to-sage-600 flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="compass" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="font-display font-bold text-lg tracking-tight text-sand-900 leading-none">Cadence</h1>
+          <p class="text-xs text-sand-800/70 mt-0.5">Mindful pacing & movement rhythm</p>
+        </div>
+      </div>
+
+      <!-- Live Day Projection & Controls -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <!-- Start Time Anchor -->
+        <div class="flex items-center gap-1.5 bg-white border border-sand-200 rounded-xl px-3 py-1.5 text-xs shadow-2xs">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-focus-600"></i>
+          <span class="text-sand-800/70 font-medium hidden sm:inline">Anchor:</span>
+          <select id="anchorMode" onchange="handleAnchorChange()" class="font-semibold text-sand-900 bg-transparent focus:outline-none cursor-pointer">
+            <option value="now">Live (Now)</option>
+            <option value="custom">Custom Start</option>
+          </select>
+          <input type="time" id="customStartTime" onchange="renderAll()" class="hidden font-semibold text-focus-700 bg-focus-50 rounded-md px-1.5 py-0.5 text-xs border border-focus-200 focus:outline-none" />
+        </div>
+
+        <!-- Day Finishes At Badge -->
+        <div id="dayFinishBadge" class="flex items-center gap-2 bg-focus-50 border border-focus-200/80 text-focus-900 rounded-xl px-3.5 py-1.5 text-xs font-medium shadow-2xs">
+          <span class="w-2 h-2 rounded-full bg-focus-500 animate-pulse"></span>
+          <span>Finishes at <strong id="finishTimeText" class="font-bold text-focus-700">--:--</strong></span>
+          <span id="totalRemainingText" class="text-focus-700/70 hidden md:inline">(0m left)</span>
+        </div>
+
+        <!-- Settings / Quick Actions Dropdown Trigger -->
+        <button onclick="toggleSettingsModal()" class="p-2 rounded-xl bg-white border border-sand-200 text-sand-800 hover:bg-sand-100 transition-colors" title="Break & Sound Preferences">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification Banner -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- LEFT COLUMN: Active Focus Block + Task Composer (5 cols on lg) -->
+    <div class="lg:col-span-5 flex flex-col gap-6 lg:sticky lg:top-20">
+
+      <!-- 1. ACTIVE FOCUS & PACING CARD ("Now Focusing") -->
+      <section id="activeFocusCard" class="rounded-3xl p-6 transition-all duration-500 card-shadow border bg-white border-focus-200">
+        <!-- Content dynamically rendered by JS -->
+      </section>
+
+      <!-- 2. TASK INPUT & SMART BREAKDOWN COMPOSER -->
+      <section class="bg-white rounded-3xl p-5 sm:p-6 border border-sand-200/90 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display font-bold text-base text-sand-900 flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-focus-600"></i>
+            Add & Break Down Task
+          </h2>
+          <button type="button" onclick="loadSampleDay()" class="text-xs font-medium text-focus-600 hover:text-focus-700 hover:underline flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+            Load Sample Day
+          </button>
+        </div>
+
+        <form id="taskForm" onsubmit="handleAddTask(event)" class="space-y-4">
+          <!-- Task Title -->
+          <div>
+            <label for="taskTitle" class="block text-xs font-semibold text-sand-800/80 mb-1.5">What needs your attention?</label>
+            <input
+              type="text"
+              id="taskTitle"
+              required
+              placeholder="e.g., Write quarterly report, Deep clean kitchen..."
+              class="w-full px-3.5 py-2.5 rounded-xl bg-sand-50 border border-sand-200 text-sm text-sand-900 placeholder:text-sand-800/40 focus:outline-none focus:ring-2 focus:ring-focus-500/30 focus:border-focus-500 transition-all"
+            />
+          </div>
+
+          <!-- Duration Presets & Custom Input -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-sand-800/80">Estimated Total Time</label>
+              <span id="durationHint" class="text-[11px] text-sage-700 font-medium"></span>
+            </div>
+            <div class="grid grid-cols-5 gap-1.5">
+              <button type="button" onclick="selectPresetDuration(25)" data-dur="25" class="dur-btn py-2 rounded-xl text-xs font-semibold border border-sand-200 bg-sand-50 text-sand-800 hover:bg-focus-50 transition-all">25m</button>
+              <button type="button" onclick="selectPresetDuration(45)" data-dur="45" class="dur-btn py-2 rounded-xl text-xs font-semibold border border-focus-500 bg-focus-50 text-focus-700 transition-all">45m</button>
+              <button type="button" onclick="selectPresetDuration(60)" data-dur="60" class="dur-btn py-2 rounded-xl text-xs font-semibold border border-sand-200 bg-sand-50 text-sand-800 hover:bg-focus-50 transition-all">60m</button>
+              <button type="button" onclick="selectPresetDuration(90)" data-dur="90" class="dur-btn py-2 rounded-xl text-xs font-semibold border border-sand-200 bg-sand-50 text-sand-800 hover:bg-focus-50 transition-all">90m</button>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="taskDuration"
+                  value="45"
+                  min="5"
+                  max="480"
+                  step="5"
+                  oninput="updateDurationHint()"
+                  class="w-full h-full px-2 py-2 rounded-xl text-xs font-semibold text-center border border-sand-200 bg-white text-sand-900 focus:outline-none focus:border-focus-500"
+                  title="Custom minutes"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Discrete Sub-steps Builder -->
+          <div class="bg-sand-50/80 rounded-2xl p-3.5 border border-sand-200/80 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-sand-800 flex items-center gap-1.5">
+                <i data-lucide="list-checks" class="w-3.5 h-3.5 text-focus-600"></i>
+                Discrete Sub-steps
+              </span>
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onclick="smartSplitDraft()"
+                  class="px-2.5 py-1 rounded-lg bg-white border border-sand-200 hover:border-focus-300 text-[11px] font-semibold text-sand-800 hover:text-focus-700 flex items-center gap-1 shadow-2xs transition-all"
+                  title="Divide into 15-25m bite-sized chunks"
+                >
+                  <i data-lucide="scissors" class="w-3 h-3 text-focus-600"></i>
+                  Smart Split
+                </button>
+                <button
+                  type="button"
+                  id="aiMagicBtn"
+                  onclick="aiMagicBreakdown()"
+                  class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-focus-600 to-focus-500 hover:from-focus-700 hover:to-focus-600 text-[11px] font-semibold text-white flex items-center gap-1 shadow-2xs transition-all"
+                  title="Generate actionable sub-steps automatically"
+                >
+                  <i data-lucide="wand-2" class="w-3 h-3"></i>
+                  <span>AI Magic Split</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Draft Sub-steps List -->
+            <div id="draftSubstepsList" class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- Add single manual sub-step -->
+            <div class="flex items-center gap-1.5 pt-1">
+              <input
+                type="text"
+                id="newSubstepInput"
+                placeholder="Add a concrete micro-step..."
+                onkeydown="if(event.key==='Enter'){event.preventDefault(); addDraftSubstep();}"
+                class="flex-1 px-3 py-1.5 rounded-xl bg-white border border-sand-200 text-xs text-sand-900 placeholder:text-sand-800/40 focus:outline-none focus:border-focus-500"
+              />
+              <input
+                type="number"
+                id="newSubstepMins"
+                placeholder="15m"
+                min="5"
+                max="120"
+                step="5"
+                class="w-16 px-2 py-1.5 rounded-xl bg-white border border-sand-200 text-xs text-center text-sand-900 focus:outline-none focus:border-focus-500"
+                title="Step minutes (optional)"
+              />
+              <button
+                type="button"
+                onclick="addDraftSubstep()"
+                class="p-1.5 rounded-xl bg-sand-200/70 hover:bg-sand-300/70 text-sand-900 transition-colors"
+                title="Add step"
+              >
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="w-full py-3 px-4 rounded-2xl bg-sand-900 hover:bg-focus-700 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+            Add to Today's Cadence
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN: Daily Pacing Timeline & Queue (7 cols on lg) -->
+    <div class="lg:col-span-7 flex flex-col gap-4">
+      <!-- Timeline Header & Summary Stats -->
+      <div class="bg-white rounded-3xl p-5 border border-sand-200/90 card-shadow flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="font-display font-bold text-lg text-sand-900">Today's Pacing Timeline</h2>
+          <p class="text-xs text-sand-800/70 mt-0.5" id="timelineSubtitle">
+            Automatic movement & transition buffers protect your energy.
+          </p>
+        </div>
+
+        <!-- Pacing Balance Pill & Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2 bg-sand-50 border border-sand-200 rounded-xl px-3 py-1.5 text-xs">
+            <span class="flex items-center gap-1 font-semibold text-focus-700">
+              <span class="w-2 h-2 rounded-full bg-focus-500"></span>
+              <span id="focusTotalStat">0m</span> focus
+            </span>
+            <span class="text-sand-300">|</span>
+            <span class="flex items-center gap-1 font-semibold text-sage-700">
+              <span class="w-2 h-2 rounded-full bg-sage-500"></span>
+              <span id="breakTotalStat">0m</span> movement
+            </span>
+          </div>
+
+          <button
+            onclick="clearCompletedTasks()"
+            class="px-3 py-1.5 rounded-xl text-xs font-medium text-sand-800/80 hover:text-sand-900 bg-sand-100 hover:bg-sand-200/80 transition-colors"
+            title="Remove completed items"
+          >
+            Clear Done
+          </button>
+          <button
+            onclick="confirmResetDay()"
+            class="px-3 py-1.5 rounded-xl text-xs font-medium text-terracotta-600 hover:bg-terracotta-50 border border-transparent hover:border-terracotta-100 transition-colors"
+            title="Clear all tasks"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Inline Confirmation Banner (replaces confirm()) -->
+      <div id="resetConfirmBanner" class="hidden bg-terracotta-50 border border-terracotta-500/30 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 text-sm text-sand-900">
+          <i data-lucide="alert-circle" class="w-5 h-5 text-terracotta-600 shrink-0"></i>
+          <span>Clear all tasks and reset today's schedule?</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="hideResetBanner()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-sand-200 text-sand-800 hover:bg-sand-50">Cancel</button>
+          <button onclick="executeResetDay()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-terracotta-600 text-white hover:bg-terracotta-500">Yes, Reset Day</button>
+        </div>
+      </div>
+
+      <!-- Dynamic Timeline Container -->
+      <div id="timelineContainer" class="space-y-3 pb-12">
+        <!-- Timeline blocks rendered here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Break & Pacing Preferences Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-sand-900/40 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 border border-sand-200 shadow-xl space-y-5">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display font-bold text-lg text-sand-900 flex items-center gap-2">
+          <i data-lucide="leaf" class="w-5 h-5 text-sage-600"></i>
+          Transition & Break Pacing
+        </h3>
+        <button onclick="toggleSettingsModal()" class="p-1.5 rounded-xl hover:bg-sand-100 text-sand-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Default Break Duration -->
+        <div>
+          <label class="block text-xs font-semibold text-sand-800 mb-1.5">Default Transition / Movement Break Length</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button type="button" onclick="setDefaultBreakDuration(5)" data-b="5" class="pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sand-200">5 min</button>
+            <button type="button" onclick="setDefaultBreakDuration(10)" data-b="10" class="pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sand-200">10 min</button>
+            <button type="button" onclick="setDefaultBreakDuration(15)" data-b="15" class="pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sand-200">15 min</button>
+            <button type="button" onclick="setDefaultBreakDuration(20)" data-b="20" class="pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sand-200">20 min</button>
+          </div>
+        </div>
+
+        <!-- Auto-split long tasks toggle -->
+        <label class="flex items-start gap-3 p-3.5 rounded-2xl bg-sage-50/70 border border-sage-200/80 cursor-pointer">
+          <input type="checkbox" id="splitLongChunksToggle" onchange="updatePreferences()" class="mt-0.5 rounded text-sage-600 focus:ring-sage-500" />
+          <div class="text-xs">
+            <span class="font-semibold text-sage-900 block">Insert mid-task movement breaks for 60m+ tasks</span>
+            <span class="text-sage-700/80 mt-0.5 block">Automatically divides tasks over 50 minutes into two focus blocks with a movement buffer in between.</span>
+          </div>
+        </label>
+
+        <!-- Sound Chime Toggle -->
+        <label class="flex items-center justify-between p-3.5 rounded-2xl bg-sand-50 border border-sand-200 cursor-pointer">
+          <div class="text-xs">
+            <span class="font-semibold text-sand-900 block">Gentle Completion Chime</span>
+            <span class="text-sand-800/70">Soft harmonic bell when a focus block or break finishes</span>
+          </div>
+          <input type="checkbox" id="soundEnabledToggle" onchange="updatePreferences()" class="rounded text-focus-600 focus:ring-focus-500" />
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-sand-200">
+        <button type="button" onclick="playGentleChime()" class="text-xs font-semibold text-focus-600 hover:text-focus-700 flex items-center gap-1.5">
+          <i data-lucide="volume-2" class="w-4 h-4"></i>
+          Test Chime
+        </button>
+        <button type="button" onclick="toggleSettingsModal()" class="px-5 py-2 rounded-xl bg-sand-900 text-white text-xs font-semibold hover:bg-focus-700 transition-colors">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // STATE MANAGEMENT & CONSTANTS
+    // =========================================================================
+    const STORAGE_KEY = 'cadence_daily_pacing_v1';
+
+    const MOVEMENT_PROMPTS = [
+      { text: "Stretch & hydrate — drink a full glass of water", icon: "droplets" },
+      { text: "Step outside or look 20ft away for 20s (eye rest)", icon: "sun" },
+      { text: "Deep breathing & clear/reset your workspace", icon: "wind" },
+      { text: "Quick 3-minute walk around the room or hallway", icon: "footprints" },
+      { text: "Shoulder rolls, neck release & posture check", icon: "activity" },
+      { text: "Put on a favorite song & shake off screen tension", icon: "music" },
+      { text: "Grab a healthy snack & take 5 slow breaths", icon: "coffee" }
+    ];
+
+    let appState = {
+      tasks: [], // Array of task objects
+      preferences: {
+        defaultBreakMins: 10,
+        splitLongTasks: true,
+        soundEnabled: true,
+        anchorMode: 'now',
+        customStartTime: '09:00'
+      },
+      timer: {
+        activeBlockId: null,
+        remainingSeconds: 0,
+        totalSeconds: 0,
+        isRunning: false,
+        lastTickTimestamp: null
+      }
+    };
+
+    // Draft sub-steps in the task creation form
+    let draftSubsteps = [];
+    let timerInterval = null;
+    let clockInterval = null;
+    let draggedTaskId = null;
+
+    // =========================================================================
+    // INITIALIZATION & PERSISTENCE
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      syncPreferencesUI();
+      updateDurationHint();
+      renderDraftSubsteps();
+      ensureActiveBlockSynced();
+      renderAll();
+      startIntervals();
+    });
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.warn('Unable to save to localStorage:', e);
+      }
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          appState = {
+            ...appState,
+            ...parsed,
+            preferences: { ...appState.preferences, ...(parsed.preferences || {}) },
+            timer: { ...appState.timer, ...(parsed.timer || {}), isRunning: false } // Pause on fresh reload for safety
+          };
+        } else {
+          // Load an inspiring starter sample day on very first visit
+          loadSampleDay(true);
+        }
+      } catch (e) {
+        console.warn('Error loading state:', e);
+      }
+    }
+
+    // =========================================================================
+    // WEB AUDIO API GENTLE CHIME
+    // =========================================================================
+    function playGentleChime() {
+      if (!appState.preferences.soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        // Warm major-9th harmonic bell chord (C5, E5, G5, D6)
+        const freqs = [523.25, 659.25, 783.99, 1174.66];
+        freqs.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+          gain.gain.setValueAtTime(0.0001, now + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.08 / (idx + 1), now + idx * 0.12 + 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 2.2);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now + idx * 0.12);
+          osc.stop(now + idx * 0.12 + 2.3);
+        });
+      } catch (e) {
+        console.warn('Web Audio playback skipped:', e);
+      }
+    }
+
+    // =========================================================================
+    // SCHEDULE ENGINE: COMPUTES BLOCKS, BREAKS & PROJECTED TIMES
+    // =========================================================================
+    /**
+     * Builds the flat ordered list of schedule blocks (Focus Chunks + Movement Breaks)
+     * from the user's tasks, calculating exact start and end timestamps.
+     */
+    function buildScheduleBlocks() {
+      const blocks = [];
+      const defaultBreak = appState.preferences.defaultBreakMins || 10;
+      const splitLong = appState.preferences.splitLongTasks;
+
+      // Determine anchor start Date
+      let cursor = getAnchorDate();
+
+      // Separate completed tasks (shown at top without projecting forward) vs active/upcoming tasks
+      const activeTasks = appState.tasks.filter(t => !t.completed);
+
+      activeTasks.forEach((task, taskIdx) => {
+        const substeps = task.substeps || [];
+        const shouldSplitIntoTwoChunks = splitLong && task.duration >= 60 && substeps.length >= 2;
+
+        if (shouldSplitIntoTwoChunks) {
+          // Divide substeps roughly in half for Part 1 & Part 2 with a mid-task movement buffer
+          const midIdx = Math.ceil(substeps.length / 2);
+          const part1Steps = substeps.slice(0, midIdx);
+          const part2Steps = substeps.slice(midIdx);
+
+          const part1Mins = part1Steps.reduce((acc, s) => acc + (s.minutes || 0), 0) || Math.ceil(task.duration / 2);
+          const part2Mins = Math.max(5, task.duration - part1Mins);
+
+          // Chunk 1
+          const c1Id = `${task.id}__part1`;
+          const c1Duration = getEffectiveBlockDuration(c1Id, part1Mins);
+          const c1Start = new Date(cursor);
+          const c1End = new Date(cursor.getTime() + c1Duration * 60000);
+          blocks.push({
+            id: c1Id,
+            type: 'focus',
+            taskId: task.id,
+            partLabel: 'Part 1 of 2',
+            title: task.title,
+            durationMins: c1Duration,
+            substeps: part1Steps,
+            startTime: c1Start,
+            endTime: c1End
+          });
+          cursor = c1End;
+
+          // Mid-task Movement Break
+          const midBreakId = `${task.id}__midbreak`;
+          const midBreakEnabled = task.midBreakEnabled !== false;
+          const midBreakMins = getEffectiveBlockDuration(midBreakId, task.midBreakMins || Math.max(5, Math.min(10, defaultBreak)));
+          const midPrompt = task.midBreakPrompt || MOVEMENT_PROMPTS[(taskIdx * 2) % MOVEMENT_PROMPTS.length];
+
+          if (midBreakEnabled) {
+            const bStart = new Date(cursor);
+            const bEnd = new Date(cursor.getTime() + midBreakMins * 60000);
+            blocks.push({
+              id: midBreakId,
+              type: 'break',
+              parentTaskId: task.id,
+              isMidTask: true,
+              enabled: true,
+              title: 'Mid-Task Movement Reset',
+              prompt: midPrompt,
+              durationMins: midBreakMins,
+              startTime: bStart,
+              endTime: bEnd
+            });
+            cursor = bEnd;
+          } else {
+            blocks.push({
+              id: midBreakId,
+              type: 'break',
+              parentTaskId: task.id,
+              isMidTask: true,
+              enabled: false,
+              title: 'Mid-Task Movement Reset',
+              prompt: midPrompt,
+              durationMins: midBreakMins,
+              startTime: new Date(cursor),
+              endTime: new Date(cursor)
+            });
+          }
+
+          // Chunk 2
+          const c2Id = `${task.id}__part2`;
+          const c2Duration = getEffectiveBlockDuration(c2Id, part2Mins);
+          const c2Start = new Date(cursor);
+          const c2End = new Date(cursor.getTime() + c2Duration * 60000);
+          blocks.push({
+            id: c2Id,
+            type: 'focus',
+            taskId: task.id,
+            partLabel: 'Part 2 of 2',
+            title: task.title,
+            durationMins: c2Duration,
+            substeps: part2Steps,
+            startTime: c2Start,
+            endTime: c2End
+          });
+          cursor = c2End;
+
+        } else {
+          // Single contiguous focus block for this task
+          const blockId = `${task.id}__main`;
+          const duration = getEffectiveBlockDuration(blockId, task.duration);
+          const start = new Date(cursor);
+          const end = new Date(cursor.getTime() + duration * 60000);
+
+          blocks.push({
+            id: blockId,
+            type: 'focus',
+            taskId: task.id,
+            partLabel: null,
+            title: task.title,
+            durationMins: duration,
+            substeps: substeps,
+            startTime: start,
+            endTime: end
+          });
+          cursor = end;
+        }
+
+        // Insert Transition / Movement Break AFTER task (if not the very last task)
+        if (taskIdx < activeTasks.length - 1) {
+          const breakId = `${task.id}__afterbreak`;
+          const enabled = task.afterBreakEnabled !== false;
+          const breakMins = getEffectiveBlockDuration(breakId, task.afterBreakMins || defaultBreak);
+          const prompt = task.afterBreakPrompt || MOVEMENT_PROMPTS[(taskIdx + 1) % MOVEMENT_PROMPTS.length];
+
+          if (enabled) {
+            const bStart = new Date(cursor);
+            const bEnd = new Date(cursor.getTime() + breakMins * 60000);
+            blocks.push({
+              id: breakId,
+              type: 'break',
+              parentTaskId: task.id,
+              isMidTask: false,
+              enabled: true,
+              title: 'Transition & Movement Break',
+              prompt: prompt,
+              durationMins: breakMins,
+              startTime: bStart,
+              endTime: bEnd
+            });
+            cursor = bEnd;
+          } else {
+            blocks.push({
+              id: breakId,
+              type: 'break',
+              parentTaskId: task.id,
+              isMidTask: false,
+              enabled: false,
+              title: 'Transition & Movement Break',
+              prompt: prompt,
+              durationMins: breakMins,
+              startTime: new Date(cursor),
+              endTime: new Date(cursor)
+            });
+          }
+        }
+      });
+
+      return { blocks, finishTime: cursor };
+    }
+
+    function getEffectiveBlockDuration(blockId, defaultMins) {
+      // If this block is currently active in the timer, reflect its current totalSeconds rounded up
+      if (appState.timer.activeBlockId === blockId && appState.timer.totalSeconds > 0) {
+        return Math.max(1, Math.ceil(appState.timer.totalSeconds / 60));
+      }
+      return defaultMins;
+    }
+
+    function getAnchorDate() {
+      const now = new Date();
+      if (appState.preferences.anchorMode === 'custom' && appState.preferences.customStartTime) {
+        const [hh, mm] = appState.preferences.customStartTime.split(':').map(Number);
+        const custom = new Date(now);
+        custom.setHours(hh || 9, mm || 0, 0, 0);
+        return custom;
+      }
+      return now;
+    }
+
+    function formatClockTime(dateObj) {
+      return dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function formatDurationHuman(mins) {
+      if (mins < 60) return `${mins}m`;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+
+    // =========================================================================
+    // TIMER & ACTIVE BLOCK ENGINE
+    // =========================================================================
+    function ensureActiveBlockSynced() {
+      const { blocks } = buildScheduleBlocks();
+      const playableBlocks = blocks.filter(b => b.type === 'focus' || b.enabled);
+
+      if (playableBlocks.length === 0) {
+        appState.timer.activeBlockId = null;
+        appState.timer.remainingSeconds = 0;
+        appState.timer.totalSeconds = 0;
+        appState.timer.isRunning = false;
+        return;
+      }
+
+      const existing = playableBlocks.find(b => b.id === appState.timer.activeBlockId);
+      if (!existing) {
+        const first = playableBlocks[0];
+        appState.timer.activeBlockId = first.id;
+        appState.timer.totalSeconds = first.durationMins * 60;
+        appState.timer.remainingSeconds = first.durationMins * 60;
+        appState.timer.isRunning = false;
+      }
+    }
+
+    function startIntervals() {
+      if (timerInterval) clearInterval(timerInterval);
+      if (clockInterval) clearInterval(clockInterval);
+
+      // 1-second timer tick
+      timerInterval = setInterval(() => {
+        if (!appState.timer.isRunning || !appState.timer.activeBlockId) return;
+
+        if (appState.timer.remainingSeconds > 0) {
+          appState.timer.remainingSeconds -= 1;
+          updateTimerDOMOnly();
+          if (appState.timer.remainingSeconds % 5 === 0) saveState();
+        } else {
+          // Block finished!
+          appState.timer.isRunning = false;
+          playGentleChime();
+          showToast('Block complete! Ready when you are to step forward.', 'sage');
+          saveState();
+          renderAll();
+        }
+      }, 1000);
+
+      // 15-second live clock projection refresh
+      clockInterval = setInterval(() => {
+        if (appState.preferences.anchorMode === 'now') {
+          renderHeaderProjection();
+          renderTimeline();
+        }
+      }, 15000);
+    }
+
+    function toggleTimerPlayPause() {
+      if (!appState.timer.activeBlockId) return;
+      appState.timer.isRunning = !appState.timer.isRunning;
+      saveState();
+      renderActiveFocusCard();
+    }
+
+    function extendActiveBlock(extraMins = 5) {
+      if (!appState.timer.activeBlockId) return;
+      appState.timer.remainingSeconds += extraMins * 60;
+      appState.timer.totalSeconds += extraMins * 60;
+
+      // Also persist duration bump onto the underlying task/break so schedule stays accurate
+      const { blocks } = buildScheduleBlocks();
+      const activeBlock = blocks.find(b => b.id === appState.timer.activeBlockId);
+      if (activeBlock) {
+        if (activeBlock.type === 'focus') {
+          const task = appState.tasks.find(t => t.id === activeBlock.taskId);
+          if (task) task.duration += extraMins;
+        } else if (activeBlock.type === 'break') {
+          const task = appState.tasks.find(t => t.id === activeBlock.parentTaskId);
+          if (task) {
+            if (activeBlock.isMidTask) task.midBreakMins = (task.midBreakMins || activeBlock.durationMins) + extraMins;
+            else task.afterBreakMins = (task.afterBreakMins || activeBlock.durationMins) + extraMins;
+          }
+        }
+      }
+
+      saveState();
+      renderAll();
+      showToast(`Added +${extraMins}m buffer — timeline updated.`, 'focus');
+    }
+
+    function completeOrSkipActiveBlock(isSkip = false) {
+      const { blocks } = buildScheduleBlocks();
+      const playableBlocks = blocks.filter(b => b.type === 'focus' || b.enabled);
+      const currentIndex = playableBlocks.findIndex(b => b.id === appState.timer.activeBlockId);
+      if (currentIndex === -1) return;
+
+      const currentBlock = playableBlocks[currentIndex];
+
+      if (currentBlock.type === 'focus') {
+        const task = appState.tasks.find(t => t.id === currentBlock.taskId);
+        if (task) {
+          // If it's Part 1 of 2, mark Part 1's substeps done and advance to the mid-break/Part 2
+          if (currentBlock.partLabel === 'Part 1 of 2') {
+            currentBlock.substeps.forEach(s => s.done = true);
+            task.part1Done = true;
+          } else {
+            // Complete the entire task!
+            task.completed = true;
+            if (task.substeps) task.substeps.forEach(s => s.done = true);
+            if (!isSkip) playGentleChime();
+          }
+        }
+      } else if (currentBlock.type === 'break') {
+        // Mark break as consumed by advancing to the next block
+        if (!isSkip) playGentleChime();
+      }
+
+      // Advance to next playable block
+      const nextBlock = playableBlocks[currentIndex + 1];
+      if (nextBlock) {
+        appState.timer.activeBlockId = nextBlock.id;
+        appState.timer.totalSeconds = nextBlock.durationMins * 60;
+        appState.timer.remainingSeconds = nextBlock.durationMins * 60;
+        appState.timer.isRunning = false;
+      } else {
+        appState.timer.activeBlockId = null;
+        appState.timer.totalSeconds = 0;
+        appState.timer.remainingSeconds = 0;
+        appState.timer.isRunning = false;
+      }
+
+      saveState();
+      renderAll();
+      if (!isSkip) {
+        showToast(currentBlock.type === 'focus' ? 'Great focus session! Stepping forward.' : 'Refreshed & ready for the next focus block.', 'sage');
+      }
+    }
+
+    function selectBlockAsActive(blockId) {
+      const { blocks } = buildScheduleBlocks();
+      const target = blocks.find(b => b.id === blockId);
+      if (!target || (target.type === 'break' && !target.enabled)) return;
+
+      appState.timer.activeBlockId = target.id;
+      appState.timer.totalSeconds = target.durationMins * 60;
+      appState.timer.remainingSeconds = target.durationMins * 60;
+      appState.timer.isRunning = false;
+      saveState();
+      renderAll();
+    }
+
+    // =========================================================================
+    // TASK INPUT, SMART SPLIT & AI MAGIC BREAKDOWN
+    // =========================================================================
+    function selectPresetDuration(mins) {
+      document.getElementById('taskDuration').value = mins;
+      document.querySelectorAll('.dur-btn').forEach(btn => {
+        const isSelected = Number(btn.dataset.dur) === mins;
+        btn.className = isSelected
+          ? 'dur-btn py-2 rounded-xl text-xs font-semibold border border-focus-500 bg-focus-50 text-focus-700 transition-all'
+          : 'dur-btn py-2 rounded-xl text-xs font-semibold border border-sand-200 bg-sand-50 text-sand-800 hover:bg-focus-50 transition-all';
+      });
+      updateDurationHint();
+    }
+
+    function updateDurationHint() {
+      const mins = Number(document.getElementById('taskDuration').value) || 0;
+      const hintEl = document.getElementById('durationHint');
+      if (mins >= 60 && appState.preferences.splitLongTasks) {
+        hintEl.textContent = `Auto-splits into 2 chunks + movement break`;
+      } else if (mins > 0) {
+        hintEl.textContent = `${mins}m single focus block`;
+      } else {
+        hintEl.textContent = '';
+      }
+    }
+
+    function addDraftSubstep() {
+      const input = document.getElementById('newSubstepInput');
+      const minsInput = document.getElementById('newSubstepMins');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const mins = Number(minsInput.value) || 15;
+      draftSubsteps.push({
+        id: 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        text,
+        minutes: mins,
+        done: false
+      });
+
+      input.value = '';
+      minsInput.value = '';
+      renderDraftSubsteps();
+    }
+
+    function removeDraftSubstep(id) {
+      draftSubsteps = draftSubsteps.filter(s => s.id !== id);
+      renderDraftSubsteps();
+    }
+
+    function renderDraftSubsteps() {
+      const container = document.getElementById('draftSubstepsList');
+      if (draftSubsteps.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-sand-800/50 italic py-1">No sub-steps yet — add manually or click Smart Split / AI Magic Split.</p>`;
+        return;
+      }
+
+      container.innerHTML = draftSubsteps.map((s, idx) => `
+        <div class="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-sand-200/80 text-xs">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-4 h-4 rounded-full bg-focus-50 text-focus-700 font-bold text-[10px] flex items-center justify-center shrink-0">${idx + 1}</span>
+            <span class="truncate text-sand-900">${escapeHtml(s.text)}</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-medium text-sand-800/60">${s.minutes}m</span>
+            <button type="button" onclick="removeDraftSubstep('${s.id}')" class="text-sand-800/40 hover:text-terracotta-600 p-0.5">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    /**
+     * Local deterministic Smart Split: divides total duration into 15-25 min bite-sized steps
+     */
+    function smartSplitDraft() {
+      const title = document.getElementById('taskTitle').value.trim() || 'Focus Task';
+      const totalMins = Math.max(15, Number(document.getElementById('taskDuration').value) || 45);
+      const chunkCount = Math.max(2, Math.min(6, Math.round(totalMins / 20)));
+      const baseChunk = Math.floor(totalMins / chunkCount);
+      const remainder = totalMins - baseChunk * chunkCount;
+
+      const phaseTemplates = [
+        `Set up workspace & outline "${title}"`,
+        `Core execution — momentum sprint 1`,
+        `Deep focus sprint — core details`,
+        `Review, refine & polish output`,
+        `Final check & wrap-up notes`,
+        `Archive & mark deliverables ready`
+      ];
+
+      draftSubsteps = Array.from({ length: chunkCount }, (_, i) => ({
+        id: 'sub_' + Date.now() + '_' + i,
+        text: phaseTemplates[i] || `Focus chunk ${i + 1}: ${title}`,
+        minutes: baseChunk + (i === 0 ? remainder : 0),
+        done: false
+      }));
+
+      renderDraftSubsteps();
+      showToast(`Split into ${chunkCount} bite-sized steps.`, 'focus');
+    }
+
+    /**
+     * AI Magic Breakdown using Gemini API with seamless local heuristic fallback
+     */
+    async function aiMagicBreakdown() {
+      const titleInput = document.getElementById('taskTitle');
+      const title = titleInput.value.trim();
+      if (!title) {
+        titleInput.focus();
+        showToast('Enter a task title first so AI can break it down!', 'terracotta');
+        return;
+      }
+
+      const totalMins = Math.max(15, Number(document.getElementById('taskDuration').value) || 45);
+      const btn = document.getElementById('aiMagicBtn');
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i><span>Splitting...</span>`;
+      lucide.createIcons();
+
+      try {
+        const steps = await fetchGeminiBreakdown(title, totalMins);
+        draftSubsteps = steps.map((s, idx) => ({
+          id: 'ai_' + Date.now() + '_' + idx,
+          text: s.step,
+          minutes: s.minutes,
+          done: false
+        }));
+        renderDraftSubsteps();
+        showToast('Generated actionable micro-steps!', 'sage');
+      } catch (err) {
+        // Clean local heuristic fallback so it always works offline or without API key
+        draftSubsteps = generateLocalHeuristicSteps(title, totalMins);
+        renderDraftSubsteps();
+        showToast('Broken down into discrete actionable steps.', 'sage');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        lucide.createIcons();
+      }
+    }
+
+    async function fetchGeminiBreakdown(taskTitle, totalMinutes) {
+      const apiKey = ""; // Runtime-provided environment key
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{
+          parts: [{
+            text: `Break down the task "${taskTitle}" (total estimated time: ${totalMinutes} minutes) into 3 to 5 discrete, concrete, low-friction sub-steps that reduce overwhelm and help someone stay on track. Ensure the sum of step minutes equals ${totalMinutes}.`
+          }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                step: { type: "STRING" },
+                minutes: { type: "INTEGER" }
+              },
+              required: ["step", "minutes"]
+            }
+          }
+        }
+      };
+
+      // Exponential backoff fetch
+      let delay = 1000;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        }
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 2;
+      }
+      throw new Error('Fallback to heuristic');
+    }
+
+    function generateLocalHeuristicSteps(title, totalMins) {
+      const lower = title.toLowerCase();
+      let templates = [];
+
+      if (lower.includes('write') || lower.includes('report') || lower.includes('draft') || lower.includes('doc') || lower.includes('essay')) {
+        templates = [
+          `Gather key notes & outline 3 main bullets for "${title}"`,
+          `Write rough unedited first draft (no perfectionism)`,
+          `Refine structure, clarity & supporting data`,
+          `Final proofread & formatting check`
+        ];
+      } else if (lower.includes('clean') || lower.includes('tidy') || lower.includes('kitchen') || lower.includes('organize') || lower.includes('room')) {
+        templates = [
+          `Clear surfaces & gather items that belong elsewhere`,
+          `Wash / wipe down main work areas`,
+          `Put away clean items & empty trash/recycling`,
+          `Quick 2-minute final sweep & reset`
+        ];
+      } else if (lower.includes('code') || lower.includes('build') || lower.includes('bug') || lower.includes('app') || lower.includes('feature')) {
+        templates = [
+          `Review requirements & reproduce/map logic`,
+          `Implement core working path`,
+          `Handle edge cases & test interactions`,
+          `Clean up code & verify build`
+        ];
+      } else if (lower.includes('study') || lower.includes('read') || lower.includes('learn') || lower.includes('research')) {
+        templates = [
+          `Skim headings & set 2 key learning questions`,
+          `Active reading & jotting concise summary notes`,
+          `Self-quiz / recall main takeaways without looking`
+        ];
+      } else {
+        templates = [
+          `Prepare workspace & define "done" for ${title}`,
+          `Focused sprint 1: tackle the easiest starting piece`,
+          `Focused sprint 2: complete main body of work`,
+          `Review results & wrap up loose ends`
+        ];
+      }
+
+      const count = templates.length;
+      const base = Math.max(5, Math.floor(totalMins / count));
+      const rem = Math.max(0, totalMins - base * count);
+
+      return templates.map((text, idx) => ({
+        id: 'heur_' + Date.now() + '_' + idx,
+        text,
+        minutes: base + (idx === 0 ? rem : 0),
+        done: false
+      }));
+    }
+
+    function handleAddTask(e) {
+      e.preventDefault();
+      const titleInput = document.getElementById('taskTitle');
+      const durationInput = document.getElementById('taskDuration');
+      const title = titleInput.value.trim();
+      const duration = Math.max(5, Number(durationInput.value) || 30);
+
+      if (!title) return;
+
+      // If user didn't add sub-steps, create a single clean default step so checklist works smoothly
+      const substeps = draftSubsteps.length > 0
+        ? [...draftSubsteps]
+        : [{ id: 'sub_' + Date.now(), text: `Complete ${title}`, minutes: duration, done: false }];
+
+      const newTask = {
+        id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        title,
+        duration,
+        substeps,
+        completed: false,
+        afterBreakEnabled: true,
+        afterBreakMins: appState.preferences.defaultBreakMins,
+        afterBreakPrompt: MOVEMENT_PROMPTS[appState.tasks.length % MOVEMENT_PROMPTS.length],
+        midBreakEnabled: true,
+        midBreakMins: Math.min(10, appState.preferences.defaultBreakMins),
+        midBreakPrompt: MOVEMENT_PROMPTS[(appState.tasks.length + 2) % MOVEMENT_PROMPTS.length]
+      };
+
+      appState.tasks.push(newTask);
+      titleInput.value = '';
+      draftSubsteps = [];
+      renderDraftSubsteps();
+
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+      showToast(`Added "${title}" with automatic transition pacing.`, 'focus');
+    }
+
+    // =========================================================================
+    // TASK & BREAK INTERACTIONS (TOGGLE, REORDER, RANDOMIZE PROMPT)
+    // =========================================================================
+    function toggleSubstepDone(taskId, substepId) {
+      const task = appState.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const sub = task.substeps.find(s => s.id === substepId);
+      if (sub) {
+        sub.done = !sub.done;
+        saveState();
+        renderAll();
+      }
+    }
+
+    function toggleTaskCompleted(taskId) {
+      const task = appState.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      task.completed = !task.completed;
+      if (task.completed && task.substeps) {
+        task.substeps.forEach(s => s.done = true);
+      }
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    function deleteTask(taskId) {
+      appState.tasks = appState.tasks.filter(t => t.id !== taskId);
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    function moveTask(taskId, direction) {
+      const idx = appState.tasks.findIndex(t => t.id === taskId);
+      if (idx === -1) return;
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= appState.tasks.length) return;
+
+      const [moved] = appState.tasks.splice(idx, 1);
+      appState.tasks.splice(newIdx, 0, moved);
+
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    function toggleBreakSlot(parentTaskId, isMidTask) {
+      const task = appState.tasks.find(t => t.id === parentTaskId);
+      if (!task) return;
+      if (isMidTask) {
+        task.midBreakEnabled = task.midBreakEnabled === false ? true : false;
+      } else {
+        task.afterBreakEnabled = task.afterBreakEnabled === false ? true : false;
+      }
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    function adjustBreakDuration(parentTaskId, isMidTask, deltaMins) {
+      const task = appState.tasks.find(t => t.id === parentTaskId);
+      if (!task) return;
+      if (isMidTask) {
+        const curr = task.midBreakMins || appState.preferences.defaultBreakMins;
+        task.midBreakMins = Math.max(5, Math.min(45, curr + deltaMins));
+      } else {
+        const curr = task.afterBreakMins || appState.preferences.defaultBreakMins;
+        task.afterBreakMins = Math.max(5, Math.min(45, curr + deltaMins));
+      }
+      // If currently active in timer, update timer too
+      const targetId = isMidTask ? `${parentTaskId}__midbreak` : `${parentTaskId}__afterbreak`;
+      if (appState.timer.activeBlockId === targetId) {
+        const newMins = isMidTask ? task.midBreakMins : task.afterBreakMins;
+        appState.timer.totalSeconds = newMins * 60;
+        appState.timer.remainingSeconds = newMins * 60;
+        appState.timer.isRunning = false;
+      }
+      saveState();
+      renderAll();
+    }
+
+    function cycleBreakPrompt(parentTaskId, isMidTask) {
+      const task = appState.tasks.find(t => t.id === parentTaskId);
+      if (!task) return;
+      const current = isMidTask ? task.midBreakPrompt : task.afterBreakPrompt;
+      const currIdx = MOVEMENT_PROMPTS.findIndex(p => p.text === current?.text);
+      const nextPrompt = MOVEMENT_PROMPTS[(currIdx + 1) % MOVEMENT_PROMPTS.length];
+
+      if (isMidTask) task.midBreakPrompt = nextPrompt;
+      else task.afterBreakPrompt = nextPrompt;
+
+      saveState();
+      renderAll();
+    }
+
+    // Drag and Drop Reordering Handlers
+    function handleDragStart(e, taskId) {
+      draggedTaskId = taskId;
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+    function handleDrop(e, targetTaskId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (!draggedTaskId || draggedTaskId === targetTaskId) return;
+
+      const fromIdx = appState.tasks.findIndex(t => t.id === draggedTaskId);
+      const toIdx = appState.tasks.findIndex(t => t.id === targetTaskId);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const [moved] = appState.tasks.splice(fromIdx, 1);
+      appState.tasks.splice(toIdx, 0, moved);
+      draggedTaskId = null;
+
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    // =========================================================================
+    // PREFERENCES, SAMPLE DAY & RESET CONTROLS
+    // =========================================================================
+    function toggleSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      if (modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        syncPreferencesUI();
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function syncPreferencesUI() {
+      const { defaultBreakMins, splitLongTasks, soundEnabled, anchorMode, customStartTime } = appState.preferences;
+      document.querySelectorAll('.pref-break-btn').forEach(btn => {
+        const active = Number(btn.dataset.b) === defaultBreakMins;
+        btn.className = active
+          ? 'pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sage-600 bg-sage-50 text-sage-800'
+          : 'pref-break-btn py-2 rounded-xl text-xs font-semibold border border-sand-200 bg-white text-sand-800 hover:bg-sand-50';
+      });
+      document.getElementById('splitLongChunksToggle').checked = splitLongTasks;
+      document.getElementById('soundEnabledToggle').checked = soundEnabled;
+      document.getElementById('anchorMode').value = anchorMode;
+      const customInput = document.getElementById('customStartTime');
+      customInput.value = customStartTime || '09:00';
+      if (anchorMode === 'custom') customInput.classList.remove('hidden');
+      else customInput.classList.add('hidden');
+    }
+
+    function setDefaultBreakDuration(mins) {
+      appState.preferences.defaultBreakMins = mins;
+      syncPreferencesUI();
+      saveState();
+      renderAll();
+    }
+
+    function updatePreferences() {
+      appState.preferences.splitLongTasks = document.getElementById('splitLongChunksToggle').checked;
+      appState.preferences.soundEnabled = document.getElementById('soundEnabledToggle').checked;
+      updateDurationHint();
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+    }
+
+    function handleAnchorChange() {
+      const mode = document.getElementById('anchorMode').value;
+      appState.preferences.anchorMode = mode;
+      const customInput = document.getElementById('customStartTime');
+      if (mode === 'custom') {
+        customInput.classList.remove('hidden');
+        appState.preferences.customStartTime = customInput.value || '09:00';
+      } else {
+        customInput.classList.add('hidden');
+      }
+      saveState();
+      renderAll();
+    }
+
+    function clearCompletedTasks() {
+      const before = appState.tasks.length;
+      appState.tasks = appState.tasks.filter(t => !t.completed);
+      if (appState.tasks.length < before) {
+        saveState();
+        renderAll();
+        showToast('Cleared completed tasks.', 'sage');
+      }
+    }
+
+    function confirmResetDay() {
+      document.getElementById('resetConfirmBanner').classList.remove('hidden');
+    }
+    function hideResetBanner() {
+      document.getElementById('resetConfirmBanner').classList.add('hidden');
+    }
+    function executeResetDay() {
+      appState.tasks = [];
+      appState.timer = { activeBlockId: null, remainingSeconds: 0, totalSeconds: 0, isRunning: false };
+      hideResetBanner();
+      saveState();
+      renderAll();
+      showToast('Schedule cleared for a fresh start.', 'focus');
+    }
+
+    function loadSampleDay(silent = false) {
+      appState.tasks = [
+        {
+          id: 'sample_1',
+          title: 'Inbox Triage & Daily Priority Map',
+          duration: 25,
+          completed: false,
+          afterBreakEnabled: true,
+          afterBreakMins: 5,
+          afterBreakPrompt: MOVEMENT_PROMPTS[0],
+          substeps: [
+            { id: 's1_1', text: 'Archive newsletters & low-priority noise', minutes: 10, done: false },
+            { id: 's1_2', text: 'Reply to top 3 urgent messages', minutes: 10, done: false },
+            { id: 's1_3', text: 'Confirm today’s top outcome', minutes: 5, done: false }
+          ]
+        },
+        {
+          id: 'sample_2',
+          title: 'Draft Q4 Product Strategy Proposal',
+          duration: 60,
+          completed: false,
+          midBreakEnabled: true,
+          midBreakMins: 10,
+          midBreakPrompt: MOVEMENT_PROMPTS[3],
+          afterBreakEnabled: true,
+          afterBreakMins: 10,
+          afterBreakPrompt: MOVEMENT_PROMPTS[1],
+          substeps: [
+            { id: 's2_1', text: 'Outline core problem statement & user metrics', minutes: 15, done: false },
+            { id: 's2_2', text: 'Draft proposed roadmap milestones', minutes: 15, done: false },
+            { id: 's2_3', text: 'Write resource & timeline summary', minutes: 15, done: false },
+            { id: 's2_4', text: 'Proofread & share link for team feedback', minutes: 15, done: false }
+          ]
+        },
+        {
+          id: 'sample_3',
+          title: 'Tidy Workspace & Prep Afternoon Calls',
+          duration: 30,
+          completed: false,
+          afterBreakEnabled: false,
+          afterBreakMins: 10,
+          afterBreakPrompt: MOVEMENT_PROMPTS[2],
+          substeps: [
+            { id: 's3_1', text: 'Clear desk clutter & refill water bottle', minutes: 10, done: false },
+            { id: 's3_2', text: 'Review agenda notes for afternoon syncs', minutes: 20, done: false }
+          ]
+        }
+      ];
+
+      appState.timer.activeBlockId = null;
+      ensureActiveBlockSynced();
+      saveState();
+      renderAll();
+      if (!silent) showToast('Sample day loaded with movement buffers!', 'sage');
+    }
+
+    // =========================================================================
+    // RENDERING ENGINE
+    // =========================================================================
+    function renderAll() {
+      if (appState.preferences.anchorMode === 'custom') {
+        appState.preferences.customStartTime = document.getElementById('customStartTime').value;
+      }
+      renderHeaderProjection();
+      renderActiveFocusCard();
+      renderTimeline();
+      lucide.createIcons();
+    }
+
+    function renderHeaderProjection() {
+      const { blocks, finishTime } = buildScheduleBlocks();
+      const playable = blocks.filter(b => b.type === 'focus' || b.enabled);
+      const focusMins = playable.filter(b => b.type === 'focus').reduce((s, b) => s + b.durationMins, 0);
+      const breakMins = playable.filter(b => b.type === 'break').reduce((s, b) => s + b.durationMins, 0);
+      const totalMins = focusMins + breakMins;
+
+      document.getElementById('finishTimeText').textContent = playable.length > 0 ? formatClockTime(finishTime) : 'All clear';
+      document.getElementById('totalRemainingText').textContent = playable.length > 0 ? `(${formatDurationHuman(totalMins)} total)` : '';
+      document.getElementById('focusTotalStat').textContent = formatDurationHuman(focusMins);
+      document.getElementById('breakTotalStat').textContent = formatDurationHuman(breakMins);
+    }
+
+    function renderActiveFocusCard() {
+      const container = document.getElementById('activeFocusCard');
+      const { blocks } = buildScheduleBlocks();
+      const activeBlock = blocks.find(b => b.id === appState.timer.activeBlockId);
+
+      if (!activeBlock) {
+        container.className = 'rounded-3xl p-6 transition-all duration-500 card-shadow border bg-white border-sand-200 text-center space-y-3';
+        container.innerHTML = `
+          <div class="w-12 h-12 rounded-2xl bg-sage-50 text-sage-600 flex items-center justify-center mx-auto">
+            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h2 class="font-display font-bold text-lg text-sand-900">Your slate is clear</h2>
+            <p class="text-xs text-sand-800/70 mt-1 max-w-xs mx-auto">Add a task below or load a sample day to start a gentle, paced rhythm.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const isBreak = activeBlock.type === 'break';
+      const totalSec = Math.max(1, appState.timer.totalSeconds);
+      const remSec = Math.max(0, appState.timer.remainingSeconds);
+      const progress = 1 - remSec / totalSec;
+      const radius = 54;
+      const circumference = 2 * Math.PI * radius;
+      const dashOffset = circumference * (1 - progress);
+
+      const minsDisplay = String(Math.floor(remSec / 60)).padStart(2, '0');
+      const secsDisplay = String(remSec % 60).padStart(2, '0');
+
+      // Theme styling: Sage Green for Movement Breaks, Indigo/Slate for Focus Blocks
+      if (isBreak) {
+        container.className = 'rounded-3xl p-6 transition-all duration-500 card-shadow border bg-gradient-to-br from-sage-50 to-white border-sage-200';
+      } else {
+        container.className = 'rounded-3xl p-6 transition-all duration-500 card-shadow border bg-gradient-to-br from-focus-50/80 to-white border-focus-200';
+      }
+
+      const badgeHtml = isBreak
+        ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-sage-100 text-sage-800">
+             <i data-lucide="leaf" class="w-3.5 h-3.5 text-sage-600"></i> Movement & Reset
+           </span>`
+        : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-focus-100 text-focus-800">
+             <i data-lucide="target" class="w-3.5 h-3.5 text-focus-600"></i> Now Focusing ${activeBlock.partLabel ? `• ${activeBlock.partLabel}` : ''}
+           </span>`;
+
+      const substepsHtml = !isBreak && activeBlock.substeps && activeBlock.substeps.length > 0
+        ? `<div class="mt-4 pt-4 border-t border-focus-200/60 space-y-1.5">
+             <p class="text-[11px] font-semibold uppercase tracking-wider text-focus-900/60 mb-2">Current Step Checklist</p>
+             ${activeBlock.substeps.map(s => `
+               <label class="flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/80 cursor-pointer transition-colors text-xs ${s.done ? 'opacity-50 line-through' : ''}">
+                 <input type="checkbox" ${s.done ? 'checked' : ''} onchange="toggleSubstepDone('${activeBlock.taskId}', '${s.id}')" class="rounded text-focus-600 focus:ring-focus-500" />
+                 <span class="flex-1 text-sand-900 font-medium">${escapeHtml(s.text)}</span>
+                 <span class="text-[11px] text-sand-800/60">${s.minutes}m</span>
+               </label>
+             `).join('')}
+           </div>`
+        : '';
+
+      const breakPromptCardHtml = isBreak
+        ? `<div class="mt-4 p-3.5 rounded-2xl bg-white/90 border border-sage-200 flex items-center gap-3">
+             <div class="w-9 h-9 rounded-xl bg-sage-100 text-sage-700 flex items-center justify-center shrink-0">
+               <i data-lucide="${activeBlock.prompt?.icon || 'footprints'}" class="w-4 h-4"></i>
+             </div>
+             <div class="flex-1 min-w-0">
+               <p class="text-xs font-semibold text-sage-900">${escapeHtml(activeBlock.prompt?.text || 'Stretch, hydrate & rest your eyes')}</p>
+               <p class="text-[11px] text-sage-700/80 mt-0.5">Step away from screens so your next block feels effortless.</p>
+             </div>
+             <button onclick="cycleBreakPrompt('${activeBlock.parentTaskId}', ${activeBlock.isMidTask})" class="p-1.5 rounded-xl hover:bg-sage-50 text-sage-700" title="New movement suggestion">
+               <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+             </button>
+           </div>`
+        : '';
+
+      container.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          ${badgeHtml}
+          <span class="text-xs font-medium text-sand-800/70">
+            ${formatClockTime(activeBlock.startTime)} – ${formatClockTime(activeBlock.endTime)}
+          </span>
+        </div>
+
+        <h2 class="font-display font-bold text-xl text-sand-900 mt-3 leading-snug">
+          ${escapeHtml(activeBlock.title)}
+        </h2>
+
+        <!-- Circular Countdown Ring -->
+        <div class="flex items-center justify-center my-5">
+          <div class="relative w-36 h-36 flex items-center justify-center">
+            <svg class="w-full h-full" viewBox="0 0 128 128">
+              <circle cx="64" cy="64" r="${radius}" fill="none" stroke="${isBreak ? '#E1EDE6' : '#E6E9F5'}" stroke-width="8" />
+              <circle
+                id="activeRingCircle"
+                class="progress-ring-circle"
+                cx="64" cy="64" r="${radius}"
+                fill="none"
+                stroke="${isBreak ? '#4F8A6F' : '#5565A8'}"
+                stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="${circumference}"
+                stroke-dashoffset="${dashOffset}"
+              />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="activeTimerDigits" class="font-display font-bold text-3xl tracking-tight text-sand-900">${minsDisplay}:${secsDisplay}</span>
+              <span class="text-[11px] font-medium text-sand-800/60 mt-0.5">${appState.timer.isRunning ? 'In progress' : 'Paused'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Controls -->
+        <div class="grid grid-cols-12 gap-2">
+          <button
+            onclick="toggleTimerPlayPause()"
+            class="col-span-6 py-2.5 px-4 rounded-2xl font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              isBreak ? 'bg-sage-600 hover:bg-sage-700' : 'bg-focus-600 hover:bg-focus-700'
+            }"
+          >
+            <i data-lucide="${appState.timer.isRunning ? 'pause' : 'play'}" class="w-4 h-4"></i>
+            ${appState.timer.isRunning ? 'Pause' : 'Start Timer'}
+          </button>
+
+          <button
+            onclick="extendActiveBlock(5)"
+            class="col-span-3 py-2.5 px-2 rounded-2xl font-semibold text-xs bg-white border border-sand-200 text-sand-800 hover:bg-sand-50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+            title="Add 5 minutes and ripple schedule"
+          >
+            +5m
+          </button>
+
+          <button
+            onclick="completeOrSkipActiveBlock(true)"
+            class="col-span-3 py-2.5 px-2 rounded-2xl font-semibold text-xs bg-white border border-sand-200 text-sand-800/80 hover:text-sand-900 hover:bg-sand-50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+            title="Skip block"
+          >
+            Skip
+          </button>
+        </div>
+
+        <button
+          onclick="completeOrSkipActiveBlock(false)"
+          class="w-full mt-2 py-2.5 px-4 rounded-2xl font-semibold text-xs border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            isBreak
+              ? 'bg-sage-100/70 border-sage-200 text-sage-900 hover:bg-sage-200/70'
+              : 'bg-focus-50 border-focus-200 text-focus-900 hover:bg-focus-100'
+          }"
+        >
+          <i data-lucide="check" class="w-4 h-4"></i>
+          Complete & Advance
+        </button>
+
+        ${breakPromptCardHtml}
+        ${substepsHtml}
+      `;
+    }
+
+    function updateTimerDOMOnly() {
+      const digitsEl = document.getElementById('activeTimerDigits');
+      const ringEl = document.getElementById('activeRingCircle');
+      if (!digitsEl || !ringEl) return;
+
+      const totalSec = Math.max(1, appState.timer.totalSeconds);
+      const remSec = Math.max(0, appState.timer.remainingSeconds);
+      const minsDisplay = String(Math.floor(remSec / 60)).padStart(2, '0');
+      const secsDisplay = String(remSec % 60).padStart(2, '0');
+      digitsEl.textContent = `${minsDisplay}:${secsDisplay}`;
+
+      const radius = 54;
+      const circumference = 2 * Math.PI * radius;
+      const progress = 1 - remSec / totalSec;
+      ringEl.style.strokeDashoffset = circumference * (1 - progress);
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById('timelineContainer');
+      const { blocks } = buildScheduleBlocks();
+      const completedTasks = appState.tasks.filter(t => t.completed);
+
+      if (blocks.length === 0 && completedTasks.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl p-10 border border-dashed border-sand-300 text-center space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-sand-100 text-sand-800/60 flex items-center justify-center mx-auto">
+              <i data-lucide="calendar" class="w-6 h-6"></i>
+            </div>
+            <h3 class="font-display font-bold text-base text-sand-900">No tasks scheduled yet</h3>
+            <p class="text-xs text-sand-800/70 max-w-sm mx-auto">
+              Add your first task on the left. We'll automatically break it into manageable pieces and weave in movement breaks.
+            </p>
+            <button onclick="loadSampleDay()" class="mt-2 px-4 py-2 rounded-xl bg-focus-50 text-focus-700 font-semibold text-xs hover:bg-focus-100 transition-colors">
+              Try Sample Day
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+
+      // Render active & upcoming schedule blocks
+      blocks.forEach((block, index) => {
+        const isCurrent = block.id === appState.timer.activeBlockId;
+
+        if (block.type === 'focus') {
+          const taskIndex = appState.tasks.findIndex(t => t.id === block.taskId);
+          const isFirstChunkOfTask = !block.partLabel || block.partLabel === 'Part 1 of 2';
+
+          html += `
+            <div
+              draggable="${isFirstChunkOfTask}"
+              ondragstart="handleDragStart(event, '${block.taskId}')"
+              ondragover="handleDragOver(event)"
+              ondragleave="handleDragLeave(event)"
+              ondrop="handleDrop(event, '${block.taskId}')"
+              class="group bg-white rounded-3xl p-4 sm:p-5 border transition-all card-shadow ${
+                isCurrent ? 'border-focus-500 ring-2 ring-focus-500/20' : 'border-sand-200/90 hover:border-focus-300'
+              }"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <!-- Left: Time Pill & Title -->
+                <div class="flex items-start gap-3 min-w-0">
+                  <button
+                    onclick="toggleTaskCompleted('${block.taskId}')"
+                    class="mt-0.5 w-5 h-5 rounded-lg border-2 border-focus-400 hover:bg-focus-50 flex items-center justify-center shrink-0 transition-colors"
+                    title="Mark entire task complete"
+                  ></button>
+
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs font-bold text-focus-700 bg-focus-50 px-2.5 py-0.5 rounded-lg border border-focus-200/70">
+                        ${formatClockTime(block.startTime)} – ${formatClockTime(block.endTime)}
+                      </span>
+                      <span class="text-xs font-semibold text-sand-800/60">${block.durationMins}m</span>
+                      ${block.partLabel ? `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sand-100 text-sand-800">${block.partLabel}</span>` : ''}
+                      ${isCurrent ? `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-focus-600 text-white">Active</span>` : ''}
+                    </div>
+
+                    <h3 class="font-display font-bold text-base text-sand-900 mt-1.5 leading-snug">
+                      ${escapeHtml(block.title)}
+                    </h3>
+                  </div>
+                </div>
+
+                <!-- Right: Reorder, Focus Now, Delete -->
+                <div class="flex items-center gap-1 shrink-0">
+                  ${!isCurrent ? `
+                    <button onclick="selectBlockAsActive('${block.id}')" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-focus-50 text-focus-700 hover:bg-focus-100 transition-colors" title="Focus on this block now">
+                      Focus
+                    </button>
+                  ` : ''}
+                  ${isFirstChunkOfTask ? `
+                    <button onclick="moveTask('${block.taskId}', -1)" ${taskIndex <= 0 ? 'disabled' : ''} class="p-1.5 rounded-lg text-sand-800/50 hover:text-sand-900 hover:bg-sand-100 disabled:opacity-25" title="Move up">
+                      <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="moveTask('${block.taskId}', 1)" ${taskIndex >= appState.tasks.length - 1 ? 'disabled' : ''} class="p-1.5 rounded-lg text-sand-800/50 hover:text-sand-900 hover:bg-sand-100 disabled:opacity-25" title="Move down">
+                      <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="deleteTask('${block.taskId}')" class="p-1.5 rounded-lg text-sand-800/40 hover:text-terracotta-600 hover:bg-terracotta-50" title="Delete task">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+
+              <!-- Discrete Sub-steps Checklist -->
+              ${block.substeps && block.substeps.length > 0 ? `
+                <div class="mt-3 pl-8 space-y-1.5">
+                  ${block.substeps.map(s => `
+                    <label class="flex items-center justify-between gap-2 text-xs py-1 px-2.5 rounded-xl bg-sand-50/80 hover:bg-sand-100/80 cursor-pointer transition-colors ${s.done ? 'opacity-50 line-through' : ''}">
+                      <span class="flex items-center gap-2 min-w-0">
+                        <input type="checkbox" ${s.done ? 'checked' : ''} onchange="toggleSubstepDone('${block.taskId}', '${s.id}')" class="rounded text-focus-600 focus:ring-focus-500" />
+                        <span class="truncate text-sand-900">${escapeHtml(s.text)}</span>
+                      </span>
+                      <span class="text-[11px] font-medium text-sand-800/60 shrink-0">${s.minutes}m</span>
+                    </label>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        } else if (block.type === 'break') {
+          // Transition / Movement Break Slot
+          if (!block.enabled) {
+            html += `
+              <div class="flex items-center justify-center py-1">
+                <button
+                  onclick="toggleBreakSlot('${block.parentTaskId}', ${block.isMidTask})"
+                  class="px-3 py-1 rounded-full border border-dashed border-sage-300 bg-sage-50/40 hover:bg-sage-50 text-[11px] font-medium text-sage-700 flex items-center gap-1.5 transition-all"
+                >
+                  <i data-lucide="plus" class="w-3 h-3"></i>
+                  Restore ${block.durationMins}m movement buffer
+                </button>
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="relative pl-4 sm:pl-6">
+                <!-- Connector line -->
+                <div class="absolute left-7 sm:left-9 top-0 bottom-0 w-0.5 bg-sage-200/80 -z-10"></div>
+
+                <div class="rounded-2xl px-4 py-3 border transition-all flex flex-wrap items-center justify-between gap-3 ${
+                  isCurrent
+                    ? 'bg-sage-100/90 border-sage-500 ring-2 ring-sage-500/20'
+                    : 'bg-sage-50/90 border-sage-200/90 hover:border-sage-400'
+                }">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-white border border-sage-200 text-sage-700 flex items-center justify-center shrink-0 shadow-2xs">
+                      <i data-lucide="${block.prompt?.icon || 'leaf'}" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-[11px] font-bold text-sage-800">
+                          ${formatClockTime(block.startTime)} – ${formatClockTime(block.endTime)}
+                        </span>
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/80 text-sage-800 border border-sage-200/70">
+                          ${block.durationMins}m Break
+                        </span>
+                        ${isCurrent ? `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sage-600 text-white">Resting</span>` : ''}
+                      </div>
+                      <p class="text-xs font-medium text-sage-900 mt-0.5 truncate">
+                        ${escapeHtml(block.prompt?.text || 'Stretch & hydrate')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Break Controls: Adjust length, Swap prompt, Toggle off -->
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="adjustBreakDuration('${block.parentTaskId}', ${block.isMidTask}, -5)" class="px-2 py-1 rounded-lg bg-white/80 hover:bg-white text-[11px] font-semibold text-sage-800 border border-sage-200/70" title="Shorten break by 5m">-5m</button>
+                    <button onclick="adjustBreakDuration('${block.parentTaskId}', ${block.isMidTask}, 5)" class="px-2 py-1 rounded-lg bg-white/80 hover:bg-white text-[11px] font-semibold text-sage-800 border border-sage-200/70" title="Extend break by 5m">+5m</button>
+                    <button onclick="cycleBreakPrompt('${block.parentTaskId}', ${block.isMidTask})" class="p-1.5 rounded-lg bg-white/80 hover:bg-white text-sage-700 border border-sage-200/70" title="Shuffle movement prompt">
+                      <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="toggleBreakSlot('${block.parentTaskId}', ${block.isMidTask})" class="p-1.5 rounded-lg hover:bg-sage-200/60 text-sage-700/70" title="Skip/hide this break">
+                      <i data-lucide="eye-off" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+      });
+
+      // Completed Tasks Section
+      if (completedTasks.length > 0) {
+        html += `
+          <div class="pt-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-sand-800/50 mb-2.5 px-1">
+              Completed Today (${completedTasks.length})
+            </h3>
+            <div class="space-y-2">
+              ${completedTasks.map(task => `
+                <div class="bg-white/60 rounded-2xl px-4 py-3 border border-sand-200/70 flex items-center justify-between gap-3 opacity-75">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <button onclick="toggleTaskCompleted('${task.id}')" class="w-5 h-5 rounded-lg bg-sage-600 text-white flex items-center justify-center shrink-0" title="Undo completion">
+                      <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <span class="text-sm font-medium text-sand-800 line-through truncate">${escapeHtml(task.title)}</span>
+                    <span class="text-xs text-sand-800/50 shrink-0">${task.duration}m</span>
+                  </div>
+                  <button onclick="deleteTask('${task.id}')" class="p-1 rounded-lg text-sand-800/40 hover:text-terracotta-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // UTILITIES: TOASTS & SANITIZATION
+    // =========================================================================
+    function showToast(message, tone = 'focus') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = tone === 'sage'
+        ? 'bg-sage-900 text-white border-sage-700'
+        : tone === 'terracotta'
+        ? 'bg-terracotta-600 text-white border-terracotta-500'
+        : 'bg-sand-900 text-white border-sand-800';
+
+      toast.className = `pointer-events-auto px-4 py-2.5 rounded-2xl text-xs font-medium shadow-lg border transition-all duration-300 flex items-center gap-2 ${colors}`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+  <script>
+    // Register the service worker when served from HTTPS or localhost.
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Offline support could not be enabled:', err));
+      });
+    }
+  </script>
+</body>
+</html>
